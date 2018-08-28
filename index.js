@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-var program = require('commander');
-var fs = require('fs');
+const program = require('commander');
+const fs = require('fs');
+var path = require("path");
 function getCamelCase( str ) {
     return str.replace( /-([a-z])/g, function( all, i ){
         return i.toUpperCase();
@@ -14,12 +15,17 @@ import app from 'App';
 import './${filenameCamelCase}.scss';
     
 class ${filenameCamelCase}Controller {
-    constructor() {
+    constructor($scope, $uibModal, $timeout, SplService, Notifier) {
+        this.services = { $scope, $uibModal, $timeout, SplService };
     }
+    
 
     $onInit() {
+        const { $scope } = this.services;
     }
 }    
+
+${filenameCamelCase}Controller.$inject = ['$scope', '$uibModal', '$timeout', 'SplService', 'Notifier'];
 app.component('${filename}', {
     template: ${filenameCamelCase}Html,
     bindings: {
@@ -29,40 +35,40 @@ app.component('${filename}', {
 }
 function generateHtml(filename) {
     const filenameCamelCase = getCamelCase(filename);
-    return `<${filename}>${filenameCamelCase} is works</${filename}>`
+    return `<main class="main-content">${filenameCamelCase} is working !</main>`
 }
 function generateScss(filename) {
-    return `${filename} {}`
+    return `${filename} {
+
+}`
 }
 
-function addComponent(filename, cmd) {
-    const args = cmd.parent.rawArgs;
-    const nodepath = args.splice(0, 1); // node run env
-    const command = args.splice(0, 1); // the eoi compand 
-    const curpath = args.splice(0, 1);
-    const dcommand = args.splice(0, 1); // eoi compand detail
-    args.forEach(item => {
-        mkdirsync(item);
+function addComponent(cmd) {
+    const args = cmd.parent.args;
+    args.forEach( item => {
+        mkdirsync(item, cmd);
     });
 
 }
 
-function mkdirsync(dirpath) {
-    const curpath = process.cwd()+ '/' + dirpath; // run node compand path   
-    if( fs.existsSync( curpath ) ){
-        console.log(dirpath + 'is extend');
+function mkdirsync(filename, cmd) {
+    const cdir = cmd.cpath + '/' + filename;
+    if( fs.existsSync( cdir ) ){
+        console.log(cdir + 'is extend');
     } else {
-        fs.mkdir(curpath, function(err) {
-            if(err) console.log(err);
-            touchfile(dirpath, curpath);
+        fs.mkdir(cdir, function(err) {
+            if(err) {
+                console.log(err);
+            } else {
+                touchfile(filename, cdir);
+            }
         });
     }
 }
 
 function touchfile(filename, dirpath) {
-    console.log(dirpath + '/' + filename);
     const fileDir = dirpath + '/' + filename;
-    fs.writeFile( fileDir + '.js' , generateJs(filename),(err) => {
+    fs.writeFile(fileDir + '.js' , generateJs(filename),(err) => {
         if(err) console.log(err);
     });
     fs.writeFile(fileDir + '.scss', generateScss(filename), (err) => {
@@ -76,13 +82,27 @@ function touchfile(filename, dirpath) {
 
 
 program
-    .version('0.1.0');
+    .version('0.1.3');
 
 
 program
-  .command('g <filename>')
-  .option('c, component')
-  .action(function(filename, cmd) {
-    addComponent(filename,cmd)
+  .command('run <dir> [name]', '')
+  .alias('r')
+  .description('')
+  .option('-c, --component', 'generate a component')
+  .action((cpath, filename, cmd) => {
+      if (cmd.component) {
+        // 挂载解析好的路径
+        cmd.cpath = path.resolve(process.cwd(), cpath)
+        addComponent(cmd)
+      } else {
+          console.log('please input parameter')
+      }
+  }).on('--help', () => {
+    console.log('  Examples:');
+    console.log();
+    console.log('  $ eoi run -c <dir> [name]');
+    console.log('  $ eoi run --component <dir> [name]');
+    console.log();
   })
 program.parse(process.argv)
